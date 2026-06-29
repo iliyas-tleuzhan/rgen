@@ -24,7 +24,19 @@ def write_tasks(tasks: Iterable[RobotTask], path: Path, fmt: str | None = None) 
             yaml.safe_dump([task.model_dump(mode="json") for task in task_list], f, sort_keys=False)
     elif fmt == "csv":
         with path.open("w", encoding="utf-8", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=["id", "instruction", "task_type", "difficulty", "is_solvable", "plan_length"])
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "id",
+                    "instruction",
+                    "task_type",
+                    "difficulty",
+                    "ambiguity",
+                    "is_solvable",
+                    "failure_mode",
+                    "plan_length",
+                ],
+            )
             writer.writeheader()
             for task in task_list:
                 writer.writerow(
@@ -33,7 +45,9 @@ def write_tasks(tasks: Iterable[RobotTask], path: Path, fmt: str | None = None) 
                         "instruction": task.instruction,
                         "task_type": task.task_type.value,
                         "difficulty": task.difficulty.value,
+                        "ambiguity": task.metadata.ambiguity.value,
                         "is_solvable": task.metadata.is_solvable,
+                        "failure_mode": task.metadata.failure_mode,
                         "plan_length": len(task.expected_plan),
                     }
                 )

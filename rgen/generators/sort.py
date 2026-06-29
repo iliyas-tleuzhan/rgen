@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from rgen.generators.base import GenerationContext
 from rgen.schemas import Difficulty, Scene, RobotTask
-from rgen.utils import COLORS, default_robot, forbidden_zone, generator_metadata, make_bin, make_object
+from rgen.utils import COLORS, choose_instruction_template, default_robot, forbidden_zone, generator_metadata, make_bin, make_distractor_objects, make_object
 
 
 class SortObjectsGenerator:
@@ -18,6 +18,8 @@ class SortObjectsGenerator:
             objects.append(make_bin(context.rng, color))
             for idx in range(repeats):
                 objects.append(make_object(context.rng, color, "cube", idx))
+        if context.difficulty == Difficulty.hard:
+            objects.extend(make_distractor_objects(context.rng, 2, start_index=10))
         zones = [forbidden_zone("sorting_no_go_zone", context.rng)] if context.difficulty == Difficulty.hard else []
         constraints = ["match each object color to the same-color bin", "grasp one object at a time", "respect workspace bounds"]
         if zones:
@@ -35,7 +37,14 @@ class SortObjectsGenerator:
         plan.append("verify_all_objects_sorted")
         return RobotTask(
             id=context.task_id,
-            instruction="Sort all colored cubes into their matching colored bins.",
+            instruction=choose_instruction_template(
+                context.rng,
+                [
+                    "Sort all cubes by color, but leave non-cube objects untouched.",
+                    "Place every movable cube into the bin with the matching color.",
+                    "Organize the colored cubes into their matching bins while ignoring distractors.",
+                ],
+            ),
             task_type=self.task_type,
             difficulty=context.difficulty,
             robot=default_robot(),
@@ -45,6 +54,10 @@ class SortObjectsGenerator:
             constraints=constraints,
             expected_plan=plan,
             safety_checks=["workspace_bounds_check", "object_attachment_check", "bin_match_check"],
-            metadata=generator_metadata(context.seed),
+            metadata=generator_metadata(
+                context.seed,
+                ambiguity="mild_ambiguous",
+                resolved_references={f"{color}_objects": f"{color}_bin" for color in colors},
+                tags=["sorting", "matching_bin", "color_reasoning"] + (["forbidden_zone"] if zones else []),
+            ),
         )
-

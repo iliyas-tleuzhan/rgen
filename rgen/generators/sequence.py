@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from rgen.generators.base import GenerationContext
 from rgen.schemas import Difficulty, Scene, RobotTask
-from rgen.utils import default_robot, generator_metadata, make_object
+from rgen.utils import choose_instruction_template, default_robot, generator_metadata, make_object
 
 
 class MultiStepSequenceGenerator:
@@ -37,7 +37,16 @@ class MultiStepSequenceGenerator:
         ]
         return RobotTask(
             id=context.task_id,
-            instruction="Open the drawer, place the red cube inside it, then close the drawer.",
+            instruction=choose_instruction_template(
+                context.rng,
+                [
+                    "Open the drawer, place the red cube inside it, then close the drawer.",
+                    "Complete the ordered sequence: open {drawer}, move {cube} inside, and close {drawer}.",
+                    "Move the required cube into the drawer only after opening it, then restore the drawer closed.",
+                ],
+                drawer=drawer.name,
+                cube=cube.name,
+            ),
             task_type=self.task_type,
             difficulty=context.difficulty,
             robot=default_robot(),
@@ -47,6 +56,10 @@ class MultiStepSequenceGenerator:
             constraints=constraints,
             expected_plan=plan,
             safety_checks=["workspace_bounds_check", "gripper_state_check", "ordered_subtask_check"],
-            metadata=generator_metadata(context.seed),
+            metadata=generator_metadata(
+                context.seed,
+                ambiguity="explicit" if context.difficulty != Difficulty.hard else "mild_ambiguous",
+                resolved_references={"drawer": drawer.name, "payload": cube.name},
+                tags=["multi_step", "ordered_subtasks", "symbolic_state"],
+            ),
         )
-

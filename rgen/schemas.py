@@ -22,6 +22,13 @@ class TaskType(str, Enum):
     avoid_zone = "avoid_zone"
     multi_step_sequence = "multi_step_sequence"
     impossible_task = "impossible_task"
+    spatial_relation = "spatial_relation"
+
+
+class AmbiguityLevel(str, Enum):
+    explicit = "explicit"
+    mild_ambiguous = "mild_ambiguous"
+    underspecified = "underspecified"
 
 
 class Bounds(BaseModel):
@@ -75,6 +82,11 @@ class TaskMetadata(BaseModel):
     seed: int | None = None
     is_solvable: bool = True
     explanation: str | None = None
+    ambiguity: AmbiguityLevel = AmbiguityLevel.explicit
+    requires_clarification: bool = False
+    clarification_question: str | None = None
+    failure_mode: str | None = None
+    resolved_references: dict[str, str] = Field(default_factory=dict)
     tags: list[str] = Field(default_factory=list)
 
 
@@ -102,7 +114,10 @@ class RobotTask(BaseModel):
             raise ValueError("solvable tasks must include a non-empty expected plan")
         if not self.metadata.is_solvable and not self.metadata.explanation:
             raise ValueError("impossible tasks must include an explanation")
+        if self.metadata.ambiguity == AmbiguityLevel.underspecified and not self.metadata.requires_clarification:
+            raise ValueError("underspecified tasks must require clarification")
+        if self.metadata.requires_clarification and not self.metadata.clarification_question:
+            raise ValueError("tasks requiring clarification must include a clarification question")
         if self.difficulty == Difficulty.impossible and self.metadata.is_solvable:
             raise ValueError("impossible difficulty must be marked unsolvable")
         return self
-

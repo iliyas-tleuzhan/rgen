@@ -12,6 +12,7 @@ from rich.table import Table
 
 from rgen.generators import GENERATORS, GenerationContext
 from rgen.io import read_tasks, write_tasks
+from rgen.report import write_report
 from rgen.schemas import Difficulty
 from rgen.stats import compute_stats
 from rgen.validators import validate_dataset
@@ -90,17 +91,34 @@ def stats(path: Path) -> None:
         ("Average plan length", f"{summary.average_plan_length:.2f}"),
         ("Average objects", f"{summary.average_objects:.2f}"),
         ("Average constraints", f"{summary.average_constraints:.2f}"),
+        ("Average zones", f"{summary.average_zones:.2f}"),
     ]
     for key, value in rows:
         table.add_row(key, str(value))
     console.print(table)
-    for title, counts in (("Task Types", summary.task_type_counts), ("Difficulty", summary.difficulty_counts)):
+    for title, counts in (
+        ("Task Types", summary.task_type_counts),
+        ("Difficulty", summary.difficulty_counts),
+        ("Ambiguity", summary.ambiguity_counts),
+        ("Failure Modes", summary.failure_mode_counts),
+    ):
         count_table = Table(title=title)
         count_table.add_column("Name")
         count_table.add_column("Count", justify="right")
         for name, count in counts.items():
             count_table.add_row(name, str(count))
         console.print(count_table)
+
+
+@app.command()
+def report(path: Path, out: Annotated[Path, typer.Option("--out")] = Path("data/report.md")) -> None:
+    """Generate a Markdown dataset quality report."""
+    write_report(path, out)
+    table = Table(title="Report Generated")
+    table.add_column("Dataset")
+    table.add_column("Report")
+    table.add_row(str(path), str(out))
+    console.print(table)
 
 
 @app.command()
@@ -152,4 +170,3 @@ def split(
 
 if __name__ == "__main__":
     app()
-
